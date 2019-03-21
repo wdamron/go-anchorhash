@@ -57,22 +57,25 @@ type Anchor struct {
 func NewAnchor(buckets, used int) *Anchor {
 	a := &Anchor{
 		A: make([]uint, buckets),
-		R: make([]uint, 0, buckets),
 		W: make([]uint, buckets),
 		L: make([]uint, buckets),
 		K: make([]uint, buckets),
 		N: uint(buckets),
 	}
 	for b := uint(0); b < uint(buckets); b++ {
-		a.A[b], a.W[b], a.L[b], a.K[b] = 0, b, b, b
+		a.W[b], a.L[b], a.K[b] = b, b, b
 	}
+	if buckets-used <= 0 {
+		return a
+	}
+	a.R = make([]uint, 0, buckets-used)
 	for b := uint(buckets) - 1; b >= uint(used); b-- {
 		a.RemoveBucket(b)
 	}
 	return a
 }
 
-// Get the bucket which a hash is assigned to.
+// Get the bucket which a hash-key is assigned to.
 //
 // 	GETBUCKET(k)
 // 	b ← hash(k) mod a
@@ -82,11 +85,12 @@ func NewAnchor(buckets, used int) *Anchor {
 // 	    h ← K[h]               ◃ search for Wb[h]
 // 	  b ← h
 // 	return b
-func (a *Anchor) GetBucket(hash uint) uint {
+func (a *Anchor) GetBucket(key uint64) uint {
 	A, K := a.A, a.K
-	b := hash % uint(len(A))
+	rand := newRand(uint32((key >> 32) ^ key))
+	b := uint(rand.next()) % uint(len(A))
 	for A[b] > 0 {
-		h := hash % A[b]
+		h := uint(rand.next()) % A[b]
 		for A[h] >= A[b] {
 			h = K[h]
 		}

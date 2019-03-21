@@ -72,3 +72,103 @@ func TestAnchor(t *testing.T) {
 		t.Fatalf("K = %#+v", a.K)
 	}
 }
+
+func TestDistributionSimple(t *testing.T) {
+	const (
+		buckets = 10
+		used    = 5
+	)
+	a := NewAnchor(buckets, used)
+
+	counts := make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	a.AddBucket()
+	a.AddBucket()
+	a.AddBucket()
+	a.AddBucket()
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(9)
+	a.RemoveBucket(8)
+	a.RemoveBucket(7)
+	a.RemoveBucket(6)
+	a.RemoveBucket(5)
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+}
+
+func TestDistributionExtended(t *testing.T) {
+	const (
+		buckets = 10
+		used    = 10
+	)
+	a := NewAnchor(buckets, used)
+
+	counts := make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(9)
+	t.Logf("removed b=9\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(5)
+	t.Logf("removed b=5\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(3)
+	t.Logf("removed b=3\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	t.Logf("re-added b=3\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	t.Logf("re-added b=5\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	t.Logf("re-added b=9\n")
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+}
