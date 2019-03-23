@@ -23,6 +23,7 @@
 package anchor
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -42,17 +43,17 @@ func TestAnchor(t *testing.T) {
 	// Ex. 13
 	a.RemoveBucket(1)
 
-	if !reflect.DeepEqual(a.W, []uint{0, 4, 2, 3, 4, 5, 6}) {
+	if !reflect.DeepEqual(a.W, []uint32{0, 4, 2, 3, 4, 5, 6}) {
 		t.Fatalf("W = %#+v", a.W)
 	}
-	if !reflect.DeepEqual(a.L, []uint{0, 1, 2, 3, 1, 5, 6}) {
+	if !reflect.DeepEqual(a.L, []uint32{0, 1, 2, 3, 1, 5, 6}) {
 		t.Fatalf("L = %#+v", a.L)
 	}
 
 	// Ex. 14/15
 	a.RemoveBucket(0)
 
-	if !reflect.DeepEqual(a.K, []uint{3, 4, 2, 3, 4, 5, 6}) {
+	if !reflect.DeepEqual(a.K, []uint32{3, 4, 2, 3, 4, 5, 6}) {
 		t.Fatalf("K = %#+v", a.K)
 	}
 
@@ -62,15 +63,92 @@ func TestAnchor(t *testing.T) {
 	a.AddBucket() // 5
 	a.AddBucket() // 6
 
-	if !reflect.DeepEqual(a.W, []uint{0, 1, 2, 3, 4, 5, 6}) {
+	if !reflect.DeepEqual(a.W, []uint32{0, 1, 2, 3, 4, 5, 6}) {
 		t.Fatalf("W = %#+v", a.W)
 	}
-	if !reflect.DeepEqual(a.L, []uint{0, 1, 2, 3, 4, 5, 6}) {
+	if !reflect.DeepEqual(a.L, []uint32{0, 1, 2, 3, 4, 5, 6}) {
 		t.Fatalf("L = %#+v", a.L)
 	}
-	if !reflect.DeepEqual(a.K, []uint{0, 1, 2, 3, 4, 5, 6}) {
+	if !reflect.DeepEqual(a.K, []uint32{0, 1, 2, 3, 4, 5, 6}) {
 		t.Fatalf("K = %#+v", a.K)
 	}
+}
+
+func TestPaths(t *testing.T) {
+	const (
+		buckets = 10
+		used    = 5
+	)
+	a := NewAnchor(buckets, used)
+	path := make([]uint32, 0, 64)
+
+	const count = 1e6
+	sum := 0
+	for i := uint64(0); i < count; i++ {
+		path = a.GetPath(i, path)
+		sum += len(path)
+		path = path[:0]
+	}
+	t.Logf("avg trace   = %v\n", float64(sum)/count)
+	t.Logf("1 + ln(a/w) = %v\n", float64(1)+math.Log(float64(buckets)/float64(used)))
+}
+
+func TestOrdering(t *testing.T) {
+	const (
+		buckets = 5
+		used    = 5
+	)
+	a := NewAnchor(buckets, used)
+
+	counts := make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(4)
+	a.RemoveBucket(3)
+	a.RemoveBucket(2)
+	t.Logf("removed b=4,3,2\n")
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	a.AddBucket()
+	a.AddBucket()
+	t.Logf("added b=2,3,4\n")
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.RemoveBucket(2)
+	a.RemoveBucket(3)
+	a.RemoveBucket(4)
+	t.Logf("removed b=2,3,4\n")
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
+
+	a.AddBucket()
+	a.AddBucket()
+	a.AddBucket()
+	t.Logf("added b=4,3,2\n")
+
+	counts = make([]int, buckets)
+	for i := uint64(0); i < 1e6; i++ {
+		counts[a.GetBucket(i)]++
+	}
+	t.Logf("%#+v\n", counts)
 }
 
 func TestDistributionSimple(t *testing.T) {

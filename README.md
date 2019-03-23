@@ -6,4 +6,6 @@ package anchor provides a minimal-memory AnchorHash consistent-hash implementati
 import "github.com/wdamron/go-anchorhash"
 ```
 
-See [AnchorHash: A Scalable Consistent Hash (Arxiv)](https://arxiv.org/abs/1812.09674)
+More Info:
+* [AnchorHash: A Scalable Consistent Hash (Arxiv)](https://arxiv.org/abs/1812.09674)
+* [Docs (godoc)](https://godoc.org/github.com/wdamron/go-anchorhash)
