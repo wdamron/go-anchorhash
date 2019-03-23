@@ -23,25 +23,29 @@
 
 package anchor
 
+const (
+	fleaSeed       = uint32(0xf1ea5eed)
+	fleaRot1       = 27
+	fleaRot2       = 17
+	fleaInitRounds = 5 // initializing with 5 rounds works well enough in practice
+)
+
 // "A small noncryptographic PRNG" (Jenkins, 2007)
 // http://burtleburtle.net/bob/rand/smallprng.html
-type randctx struct {
-	a, b, c, d uint32
+//
+// Also known as FLEA
+func fleaInit(key uint64) (a, b, c, d uint32) {
+	seed := uint32((key >> 32) ^ key)
+	return fleaSeed, seed, seed, seed
 }
 
-func newRand(seed uint32) randctx {
-	r := randctx{a: 0xf1ea5eed, b: seed, c: seed, d: seed}
-	for i := uint32(0); i < 3; i++ {
-		_ = r.next()
-	}
-	return r
+func fleaRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
+	e := a - fleaRot(b, fleaRot1)
+	a = b ^ fleaRot(c, fleaRot2)
+	b = c + d
+	c = d + e
+	d = e + a
+	return a, b, c, d
 }
 
-func (r *randctx) next() uint32 {
-	e := r.a - (((r.b) << (27)) | ((r.b) >> (32 - (27))))
-	r.a = r.b ^ (((r.c) << (17)) | ((r.c) >> (32 - (17))))
-	r.b = r.c + r.d
-	r.c = r.d + e
-	r.d = e + r.a
-	return r.d
-}
+func fleaRot(n, shift uint32) uint32 { return (n << shift) | (n >> (32 - shift)) }

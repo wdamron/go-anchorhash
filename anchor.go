@@ -33,14 +33,14 @@ type Anchor struct {
 	// is a working bucket (i.e., A[b] = 0 if b ∈ W), or else equals the size of the working
 	// set just after its removal (i.e., A[b] = |Wb| if b ∈ R).
 	A []uint32
-	// R saves removed buckets in a LIFO order for possible future bucket additions.
-	R []uint32
+	// K stores the successor for each removed bucket b (i.e. the bucket that replaced it in W).
+	K []uint32
 	// W always contains the current set of working buckets in their desired order.
 	W []uint32
 	// L stores the most recent location for each bucket within W.
 	L []uint32
-	// K stores the successor for each removed bucket b (i.e. the bucket that replaced it in W).
-	K []uint32
+	// R saves removed buckets in a LIFO order for possible future bucket additions.
+	R []uint32
 	// N is the current length of W
 	N uint32
 }
@@ -57,18 +57,15 @@ type Anchor struct {
 func NewAnchor(buckets, used int) *Anchor {
 	a := &Anchor{
 		A: make([]uint32, buckets),
+		K: make([]uint32, buckets),
 		W: make([]uint32, buckets),
 		L: make([]uint32, buckets),
-		K: make([]uint32, buckets),
+		R: make([]uint32, 0, buckets),
 		N: uint32(buckets),
 	}
 	for b := uint32(0); b < uint32(buckets); b++ {
-		a.W[b], a.L[b], a.K[b] = b, b, b
+		a.K[b], a.W[b], a.L[b] = b, b, b
 	}
-	if buckets-used <= 0 {
-		return a
-	}
-	a.R = make([]uint32, 0, buckets-used)
 	for b := uint32(buckets) - 1; b >= uint32(used); b-- {
 		a.RemoveBucket(b)
 	}
@@ -92,10 +89,17 @@ func NewAnchor(buckets, used int) *Anchor {
 // 	return b
 func (a *Anchor) GetBucket(key uint64) uint32 {
 	A, K := a.A, a.K
-	rand := newRand(uint32((key >> 32) ^ key))
-	b := rand.next() % uint32(len(A))
+
+	// The initialization loop is inlined for better registerization/performance.
+	ha, hb, hc, hd := fleaInit(key)
+	for i := 0; i < fleaInitRounds; i++ {
+		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
+	}
+
+	b := hd % uint32(len(A))
 	for A[b] > 0 {
-		h := rand.next() % A[b]
+		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
+		h := hd % A[b]
 		for A[h] >= A[b] {
 			h = K[h]
 		}
@@ -131,15 +135,22 @@ func (a *Anchor) GetBucket(key uint64) uint32 {
 // 	return P
 func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
 	A, K := a.A, a.K
-	rand := newRand(uint32((key >> 32) ^ key))
-	b := rand.next() % uint32(len(A))
+
+	// The initialization loop is inlined for better registerization/performance.
+	ha, hb, hc, hd := fleaInit(key)
+	for i := 0; i < fleaInitRounds; i++ {
+		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
+	}
+
+	b := hd % uint32(len(A))
 	pathBuffer = append(pathBuffer, b)
 	for A[b] > 0 {
-		h := rand.next() % A[b]
-		pathBuffer = append(pathBuffer, h)
+		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
+		h := hd % A[b]
+		pathBuffer = append(pathBuffer, b)
 		for A[h] >= A[b] {
 			h = K[h]
-			pathBuffer = append(pathBuffer, h)
+			pathBuffer = append(pathBuffer, b)
 		}
 		b = h
 	}
@@ -156,7 +167,7 @@ func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
 // 	N ← N + 1
 // 	return b
 func (a *Anchor) AddBucket() uint32 {
-	A, R, W, L, K, N := a.A, a.R, a.W, a.L, a.K, a.N
+	A, K, W, L, R, N := a.A, a.K, a.W, a.L, a.R, a.N
 	b := R[len(R)-1]
 	a.R = R[:len(R)-1]
 	A[b] = 0
@@ -176,7 +187,7 @@ func (a *Anchor) AddBucket() uint32 {
 // 	L[W[N]] ← L[b]
 func (a *Anchor) RemoveBucket(b uint32) {
 	a.N--
-	A, W, L, K, N := a.A, a.W, a.L, a.K, a.N
+	A, K, W, L, N := a.A, a.K, a.W, a.L, a.N
 	a.R = append(a.R, b)
 	A[b] = N
 	W[L[b]], K[b] = W[N], W[N]
