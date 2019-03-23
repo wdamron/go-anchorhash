@@ -20,29 +20,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// package anchor provides a minimal-memory AnchorHash consistent-hash implementation for Go.
-//
-// [AnchorHash: A Scalable Consistent Hash]: https://arxiv.org/abs/1812.09674
 package anchor
 
-// Minimal-memory AnchorHash implementation.
-type Anchor struct {
+// Compact, minimal-memory AnchorHash implementation.
+//
+// Buckets will be stored as unsigned 16-bit integers, so the maximum size of the working-set
+// will be limited to 65,535 buckets. This implementation offers improved cache-locality
+// relative to Anchor.
+type CompactAnchor struct {
 	// We use an integer array A of size a to represent the Anchor.
 	//
 	// Each bucket b ∈ {0, 1, ..., a−1} is represented by A[b] that either equals 0 if b
 	// is a working bucket (i.e., A[b] = 0 if b ∈ W), or else equals the size of the working
 	// set just after its removal (i.e., A[b] = |Wb| if b ∈ R).
-	A []uint32
+	A []uint16
 	// K stores the successor for each removed bucket b (i.e. the bucket that replaced it in W).
-	K []uint32
+	K []uint16
 	// W always contains the current set of working buckets in their desired order.
-	W []uint32
+	W []uint16
 	// L stores the most recent location for each bucket within W.
-	L []uint32
+	L []uint16
 	// R saves removed buckets in a LIFO order for possible future bucket additions.
-	R []uint32
+	R []uint16
 	// N is the current length of W
-	N uint32
+	N uint16
 }
 
 // Create a new anchor with a given capacity and initial size.
@@ -54,19 +55,19 @@ type Anchor struct {
 // 	K[b] ← L[b] ← W[b] ← b for b = 0, 1, ..., a−1
 // 	for b = a−1 downto w do            ◃ Remove initially unused buckets
 // 	  REMOVEBUCKET(b)
-func NewAnchor(buckets, used int) *Anchor {
-	a := &Anchor{
-		A: make([]uint32, buckets),
-		K: make([]uint32, buckets),
-		W: make([]uint32, buckets),
-		L: make([]uint32, buckets),
-		R: make([]uint32, 0, buckets),
-		N: uint32(buckets),
+func NewCompactAnchor(buckets, used uint16) *CompactAnchor {
+	a := &CompactAnchor{
+		A: make([]uint16, buckets),
+		K: make([]uint16, buckets),
+		W: make([]uint16, buckets),
+		L: make([]uint16, buckets),
+		R: make([]uint16, 0, buckets),
+		N: uint16(buckets),
 	}
-	for b := uint32(0); b < uint32(buckets); b++ {
+	for b := uint16(0); b < uint16(buckets); b++ {
 		a.K[b], a.W[b], a.L[b] = b, b, b
 	}
-	for b := uint32(buckets) - 1; b >= uint32(used); b-- {
+	for b := uint16(buckets) - 1; b >= uint16(used); b-- {
 		a.RemoveBucket(b)
 	}
 	return a
@@ -87,7 +88,7 @@ func NewAnchor(buckets, used int) *Anchor {
 // 	    h ← K[h]               ◃ search for Wb[h]
 // 	  b ← h
 // 	return b
-func (a *Anchor) GetBucket(key uint64) uint32 {
+func (a *CompactAnchor) GetBucket(key uint64) uint16 {
 	A, K := a.A, a.K
 
 	// The initialization loop is inlined for better registerization/performance.
@@ -96,10 +97,10 @@ func (a *Anchor) GetBucket(key uint64) uint32 {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
 	}
 
-	b := hd % uint32(len(A))
+	b := uint16(hd) % uint16(len(A))
 	for A[b] > 0 {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
-		h := hd % A[b]
+		h := uint16(hd) % A[b]
 		for A[h] >= A[b] {
 			h = K[h]
 		}
@@ -133,7 +134,7 @@ func (a *Anchor) GetBucket(key uint64) uint32 {
 // 	    P.push(h)
 // 	  b ← h
 // 	return P
-func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
+func (a *CompactAnchor) GetPath(key uint64, pathBuffer []uint16) []uint16 {
 	A, K := a.A, a.K
 
 	// The initialization loop is inlined for better registerization/performance.
@@ -142,11 +143,11 @@ func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
 	}
 
-	b := hd % uint32(len(A))
+	b := uint16(hd) % uint16(len(A))
 	pathBuffer = append(pathBuffer, b)
 	for A[b] > 0 {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
-		h := hd % A[b]
+		h := uint16(hd) % A[b]
 		pathBuffer = append(pathBuffer, h)
 		for A[h] >= A[b] {
 			h = K[h]
@@ -166,7 +167,7 @@ func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
 // 	W[L[b]] ← K[b] ← b
 // 	N ← N + 1
 // 	return b
-func (a *Anchor) AddBucket() uint32 {
+func (a *CompactAnchor) AddBucket() uint16 {
 	A, K, W, L, R, N := a.A, a.K, a.W, a.L, a.R, a.N
 	b := R[len(R)-1]
 	a.R = R[:len(R)-1]
@@ -185,7 +186,7 @@ func (a *Anchor) AddBucket() uint32 {
 // 	A[b] ← N       ◃ Wb ← W \ b, A[b] ← |Wb|
 // 	W[L[b]] ← K[b] ← W[N]
 // 	L[W[N]] ← L[b]
-func (a *Anchor) RemoveBucket(b uint32) {
+func (a *CompactAnchor) RemoveBucket(b uint16) {
 	a.N--
 	A, K, W, L, N := a.A, a.K, a.W, a.L, a.N
 	a.R = append(a.R, b)
