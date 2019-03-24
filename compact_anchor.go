@@ -93,6 +93,7 @@ func (a *CompactAnchor) GetBucket(key uint64) uint16 {
 	A, K := a.A, a.K
 
 	// The initialization loop is inlined for better registerization/performance.
+	// See https://github.com/golang/go/issues/14768
 	ha, hb, hc, hd := fleaInit(key)
 	for i := 0; i < fleaInitRounds; i++ {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
@@ -140,6 +141,7 @@ func (a *CompactAnchor) GetPath(key uint64, pathBuffer []uint16) []uint16 {
 	A, K := a.A, a.K
 
 	// The initialization loop is inlined for better registerization/performance.
+	// See https://github.com/golang/go/issues/14768
 	ha, hb, hc, hd := fleaInit(key)
 	for i := 0; i < fleaInitRounds; i++ {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)

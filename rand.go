@@ -23,6 +23,8 @@
 
 package anchor
 
+import "math/bits"
+
 const (
 	fleaSeed       = uint32(0xf1ea5eed)
 	fleaRot1       = 27
@@ -41,12 +43,10 @@ func fleaInit(key uint64) (a, b, c, d uint32) {
 }
 
 func fleaRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
-	e := a - fleaRot(b, fleaRot1)
-	a = b ^ fleaRot(c, fleaRot2)
+	e := a - bits.RotateLeft32(b, fleaRot1)
+	a = b ^ bits.RotateLeft32(c, fleaRot2)
 	b = c + d
 	c = d + e
 	d = e + a
 	return a, b, c, d
 }
-
-func fleaRot(n, shift uint32) uint32 { return (n << shift) | (n >> (32 - shift)) }
