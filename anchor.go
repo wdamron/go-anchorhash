@@ -77,7 +77,8 @@ func NewAnchor(buckets, used int) *Anchor {
 // If the path for a given key contains any non-working buckets, the path (and in turn,
 // the assigned bucket for the key) will be determined by the order in which the non-working
 // buckets were removed. To maintain consistency in a distributed system, all agents must
-// reach consensus on the ordering of changes to the working set.
+// reach consensus on the ordering of changes to the working set. For more information,
+// see Section III, Theorem 1 in the paper.
 //
 // 	GETBUCKET(k)
 // 	b ← hash(k) mod a
@@ -120,7 +121,8 @@ func (a *Anchor) GetBucket(key uint64) uint32 {
 // If the path for a given key contains any non-working buckets, the path (and in turn,
 // the assigned bucket for the key) will be determined by the order in which the non-working
 // buckets were removed. To maintain consistency in a distributed system, all agents must
-// reach consensus on the ordering of changes to the working set.
+// reach consensus on the ordering of changes to the working set. For more information,
+// see Section III, Theorem 1 in the paper.
 //
 // 	GETPATH(k, P)
 // 	b ← hash(k) mod a

@@ -1,7 +1,6 @@
 // The MIT License (MIT)
 //
 // Copyright (c) 2019 West Damron
-// Portions Copyright (c) 2007 Bob Jenkins
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +22,64 @@
 
 package anchor
 
-const (
-	fleaSeed       = uint32(0xf1ea5eed)
-	fleaRot1       = 27
-	fleaRot2       = 17
-	fleaInitRounds = 3 // initializing with 3 rounds works well enough in practice
+import (
+	"testing"
 )
 
-// "A small noncryptographic PRNG" (Jenkins, 2007)
-// * http://burtleburtle.net/bob/rand/smallprng.html
-// * https://groups.google.com/d/msg/sci.crypt.random-numbers/LAuBGOErdrk/xrMBr3guA7IJ
-//
-// Also known as FLEA
-func fleaInit(key uint64) (a, b, c, d uint32) {
-	seed := uint32((key >> 32) ^ key)
-	return fleaSeed, seed, seed, seed
+var _benchIgnore uint32 = 0
+
+func BenchmarkGetBucket_9_10(b *testing.B) {
+	const (
+		buckets = 10
+		used    = 9
+	)
+
+	a := NewCompactAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += uint32(a.GetBucket(uint64(i)))
+	}
 }
 
-func fleaRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
-	e := a - fleaRot(b, fleaRot1)
-	a = b ^ fleaRot(c, fleaRot2)
-	b = c + d
-	c = d + e
-	d = e + a
-	return a, b, c, d
+func BenchmarkGetBucket_5_10(b *testing.B) {
+	const (
+		buckets = 10
+		used    = 5
+	)
+
+	a := NewCompactAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += uint32(a.GetBucket(uint64(i)))
+	}
 }
 
-func fleaRot(n, shift uint32) uint32 { return (n << shift) | (n >> (32 - shift)) }
+func BenchmarkGetBucket_900k_1m(b *testing.B) {
+	const (
+		buckets = 1000000
+		used    = 900000
+	)
+
+	a := NewAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += a.GetBucket(uint64(i))
+	}
+}
+
+func BenchmarkGetBucket_500k_1m(b *testing.B) {
+	const (
+		buckets = 1000000
+		used    = 500000
+	)
+
+	a := NewAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += a.GetBucket(uint64(i))
+	}
+}
