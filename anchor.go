@@ -90,14 +90,7 @@ func NewAnchor(buckets, used int) *Anchor {
 // 	return b
 func (a *Anchor) GetBucket(key uint64) uint32 {
 	A, K := a.A, a.K
-
-	// The initialization loop is inlined for better registerization/performance.
-	// See https://github.com/golang/go/issues/14768
 	ha, hb, hc, hd := fleaInit(key)
-	for i := 0; i < fleaInitRounds; i++ {
-		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
-	}
-
 	b := hd % uint32(len(A))
 	for A[b] > 0 {
 		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
@@ -138,14 +131,7 @@ func (a *Anchor) GetBucket(key uint64) uint32 {
 // 	return P
 func (a *Anchor) GetPath(key uint64, pathBuffer []uint32) []uint32 {
 	A, K := a.A, a.K
-
-	// The initialization loop is inlined for better registerization/performance.
-	// See https://github.com/golang/go/issues/14768
 	ha, hb, hc, hd := fleaInit(key)
-	for i := 0; i < fleaInitRounds; i++ {
-		ha, hb, hc, hd = fleaRound(ha, hb, hc, hd)
-	}
-
 	b := hd % uint32(len(A))
 	pathBuffer = append(pathBuffer, b)
 	for A[b] > 0 {

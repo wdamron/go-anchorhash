@@ -39,7 +39,21 @@ const (
 // Also known as FLEA
 func fleaInit(key uint64) (a, b, c, d uint32) {
 	seed := uint32((key >> 32) ^ key)
-	return fleaSeed, seed, seed, seed
+	a, b, c, d = fleaSeed, seed, seed, seed
+	i := 0
+	// Functions containing for-loops cannot currently be inlined.
+	// See https://github.com/golang/go/issues/14768
+loop:
+	e := a - bits.RotateLeft32(b, fleaRot1)
+	a = b ^ bits.RotateLeft32(c, fleaRot2)
+	b = c + d
+	c = d + e
+	d = e + a
+	i++
+	if i < fleaInitRounds {
+		goto loop
+	}
+	return
 }
 
 func fleaRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
