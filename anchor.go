@@ -60,14 +60,14 @@ func NewAnchor(buckets, used int) *Anchor {
 		K: make([]uint32, buckets),
 		W: make([]uint32, buckets),
 		L: make([]uint32, buckets),
-		R: make([]uint32, 0, buckets),
-		N: uint32(buckets),
+		R: make([]uint32, buckets-used, buckets),
+		N: uint32(used),
 	}
-	for b := uint32(0); b < uint32(buckets); b++ {
+	for b := uint32(0); b < uint32(used); b++ {
 		a.K[b], a.W[b], a.L[b] = b, b, b
 	}
-	for b := uint32(buckets) - 1; b >= uint32(used); b-- {
-		a.RemoveBucket(b)
+	for b, r := uint32(buckets)-1, 0; b >= uint32(used); b, r = b-1, r+1 {
+		a.A[b], a.R[r] = b, b
 	}
 	return a
 }
@@ -190,6 +190,9 @@ func (a *Anchor) AddBucket() uint32 {
 // 	W[L[b]] ← K[b] ← W[N]
 // 	L[W[N]] ← L[b]
 func (a *Anchor) RemoveBucket(b uint32) {
+	if a.A[b] != 0 {
+		return
+	}
 	a.N--
 	A, K, W, L, N := a.A, a.K, a.W, a.L, a.N
 	a.R = append(a.R, b)

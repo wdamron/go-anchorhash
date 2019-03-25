@@ -25,7 +25,7 @@ package anchor
 // Compact, minimal-memory AnchorHash implementation.
 //
 // Buckets will be stored as unsigned 16-bit integers, so the maximum size of the working set
-// will be limited to 65,535 buckets. This implementation offers improved cache-locality
+// will be limited to 65,536 buckets. This implementation offers improved cache-locality
 // relative to Anchor.
 type CompactAnchor struct {
 	// We use an integer array A of size a to represent the Anchor.
@@ -61,14 +61,14 @@ func NewCompactAnchor(buckets, used uint16) *CompactAnchor {
 		K: make([]uint16, buckets),
 		W: make([]uint16, buckets),
 		L: make([]uint16, buckets),
-		R: make([]uint16, 0, buckets),
-		N: uint16(buckets),
+		R: make([]uint16, buckets-used, buckets),
+		N: uint16(used),
 	}
-	for b := uint16(0); b < uint16(buckets); b++ {
+	for b := uint16(0); b < uint16(used); b++ {
 		a.K[b], a.W[b], a.L[b] = b, b, b
 	}
-	for b := uint16(buckets) - 1; b >= uint16(used); b-- {
-		a.RemoveBucket(b)
+	for b, r := uint16(buckets)-1, 0; b >= uint16(used); b, r = b-1, r+1 {
+		a.A[b], a.R[r] = b, b
 	}
 	return a
 }
@@ -191,6 +191,9 @@ func (a *CompactAnchor) AddBucket() uint16 {
 // 	W[L[b]] ← K[b] ← W[N]
 // 	L[W[N]] ← L[b]
 func (a *CompactAnchor) RemoveBucket(b uint16) {
+	if a.A[b] != 0 {
+		return
+	}
 	a.N--
 	A, K, W, L, N := a.A, a.K, a.W, a.L, a.N
 	a.R = append(a.R, b)
