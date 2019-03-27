@@ -28,6 +28,20 @@ import (
 
 var _benchIgnore uint32 = 0
 
+func BenchmarkGetBucket_10_10(b *testing.B) {
+	const (
+		buckets = 10
+		used    = 10
+	)
+
+	a := NewCompactAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += uint32(a.GetBucket(uint64(i)))
+	}
+}
+
 func BenchmarkGetBucket_9_10(b *testing.B) {
 	const (
 		buckets = 10
@@ -53,6 +67,20 @@ func BenchmarkGetBucket_5_10(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < n; i++ {
 		_benchIgnore += uint32(a.GetBucket(uint64(i)))
+	}
+}
+
+func BenchmarkGetBucket_1m_1m(b *testing.B) {
+	const (
+		buckets = 1000000
+		used    = 1000000
+	)
+
+	a := NewAnchor(buckets, used)
+	n := b.N
+	b.ResetTimer()
+	for i := 0; i < n; i++ {
+		_benchIgnore += a.GetBucket(uint64(i))
 	}
 }
 
